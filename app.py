@@ -4,8 +4,8 @@ import pandas as pd
 from datetime import date
 
 # ================= 配置后端地址 =================
-# 因为你们在本地测试，所以直接用 127.0.0.1
-BACKEND_URL = "http://127.0.0.1:8000/api/stations"
+
+BACKEND_URL = "http://10.199.205.3:8000/api/stations"
 
 # 1. 设置网页基础信息
 st.set_page_config(
