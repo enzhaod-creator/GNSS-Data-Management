@@ -1,4 +1,5 @@
-
+import pandas as pd
+from pathlib import Path
 import streamlit as st
 from datetime import date
 
@@ -42,24 +43,95 @@ if page == "系统首页":
 
     st.success("系统网页已创建，等待接入数据库。")
 
-# 4. 站点管理
+
+# 4. GNSS站点管理
 elif page == "站点管理":
 
     st.title("📍 GNSS站点管理")
+    st.write("GNSS观测站点信息展示与查询")
 
-    st.write("后续将展示GNSS站点信息。")
-
-    st.dataframe(
-        {
-            "站点编号": ["BJFS", "SHAO", "WUHN"],
-            "站点名称": ["北京测试站", "上海测试站", "武汉测试站"],
-            "状态": ["示例", "示例", "示例"]
-        },
-        hide_index=True,
-        use_container_width=True
+    station_file = (
+        Path(__file__).resolve().parent
+        / "data"
+        / "stations.csv"
     )
 
-    st.caption("以上为模拟数据，并非真实数据库记录。")
+    if station_file.exists():
+
+        df = pd.read_csv(
+            station_file,
+            dtype={"station_code": "string"}
+        )
+
+        if df.empty:
+            st.info("暂无真实GNSS站点数据。")
+
+        else:
+            keyword = st.text_input(
+                "搜索站点编号或名称"
+            )
+
+            if keyword:
+                mask = (
+                    df["station_code"]
+                    .fillna("")
+                    .str.contains(
+                        keyword,
+                        case=False,
+                        regex=False
+                    )
+                    |
+                    df["station_name"]
+                    .fillna("")
+                    .astype(str)
+                    .str.contains(
+                        keyword,
+                        case=False,
+                        regex=False
+                    )
+                )
+                df = df[mask]
+
+            st.metric("站点数量", len(df))
+
+            st.dataframe(
+                df,
+                hide_index=True,
+                use_container_width=True
+            )
+
+            map_df = df.copy()
+
+            map_df["latitude"] = pd.to_numeric(
+                map_df["latitude"],
+                errors="coerce"
+            )
+
+            map_df["longitude"] = pd.to_numeric(
+                map_df["longitude"],
+                errors="coerce"
+            )
+
+            map_df = map_df.dropna(
+                subset=["latitude", "longitude"]
+            )
+
+            map_df = map_df[
+                map_df["latitude"].between(-90, 90)
+                & map_df["longitude"].between(-180, 180)
+            ]
+
+            if not map_df.empty:
+                st.subheader("GNSS站点分布地图")
+                st.map(
+                    map_df,
+                    latitude="latitude",
+                    longitude="longitude"
+                )
+
+    else:
+        st.warning("尚未找到站点数据文件。")
+
 
 # 5. 数据查询
 elif page == "数据查询":
