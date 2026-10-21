@@ -3,6 +3,39 @@ from pathlib import Path
 import streamlit as st
 from datetime import date
 
+# 读取真实GNSS站点信息
+def load_stations():
+    csv_path = (
+        Path(__file__).resolve().parent
+        / "data"
+        / "stations.csv"
+    )
+
+    if not csv_path.exists():
+        return pd.DataFrame(), "未找到站点信息文件"
+
+    try:
+        df = pd.read_csv(
+            csv_path,
+            dtype={"station_code": "string"}
+        )
+
+        required_columns = [
+            "station_code",
+            "station_name",
+            "latitude",
+            "longitude",
+            "status"
+        ]
+
+        if not all(col in df.columns for col in required_columns):
+            return pd.DataFrame(), "站点文件缺少必要字段"
+
+        return df, None
+
+    except Exception as e:
+        return pd.DataFrame(), f"站点文件读取失败：{e}"
+
 # 1. 设置网页基础信息
 st.set_page_config(
     page_title="GNSS数据管理系统",
@@ -21,6 +54,7 @@ page = st.sidebar.radio(
 st.sidebar.divider()
 st.sidebar.caption("GNSS Data Management System")
 
+
 # 3. 系统首页
 if page == "系统首页":
 
@@ -28,11 +62,26 @@ if page == "系统首页":
     st.write("GNSS Data Management Platform")
     st.divider()
 
+    # 从CSV读取真实站点信息
+    stations_df, station_error = load_stations()
+
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("GNSS站点数量", 0)
-    col2.metric("RINEX文件数量", 0)
-    col3.metric("数据存储量", "0 GB")
+    # 动态统计真实站点数量
+    if station_error:
+        col1.metric("GNSS站点数量", "未接入")
+        st.warning(station_error)
+    else:
+        col1.metric(
+            "GNSS站点数量",
+            len(stations_df)
+        )
+
+    # 尚未建立真实RINEX文件索引
+    col2.metric("RINEX文件数量", "未接入")
+
+    # 尚未建立真实文件存储统计
+    col3.metric("数据存储量", "未接入")
 
     st.subheader("系统功能")
 
@@ -41,8 +90,16 @@ if page == "系统首页":
         "管理、查询和下载。"
     )
 
-    st.success("系统网页已创建，等待接入数据库。")
+    if not station_error and stations_df.empty:
+        st.warning("站点信息表已建立，等待录入真实GNSS站点。")
 
+    elif not station_error:
+        st.success("GNSS站点数据已成功读取。")
+
+    st.caption(
+        "RINEX文件统计和存储量统计将在"
+        "后续接入真实GNSS文件后启用。"
+    )
 
 # 4. GNSS站点管理
 elif page == "站点管理":
